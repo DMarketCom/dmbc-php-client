@@ -7,17 +7,28 @@
 
 namespace SunTechSoft\Blockchain;
 
+use SunTechSoft\Blockchain\Exception\CallException;
+use SunTechSoft\Blockchain\Message\Wallets\AbstractMessage;
+
 class Client
 {
-    private $ip;
-    private $port;
-    private $ssl;
+    private $domain;
+    private $protocol;
+    /**
+     * @var string
+     */
+    private $version;
+    /**
+     * @var string
+     */
+    private $baseUrl;
 
-    public function __construct($ip, $port = null, $useSSl = false)
+    public function __construct($domain, $protocol = 'https', $version = 'v1', $baseUrl = '/api/services/cryptocurrency/')
     {
-        $this->ip = $ip;
-        $this->port = $port;
-        $this->ssl = $useSSl;
+        $this->domain = $domain;
+        $this->protocol = $protocol;
+        $this->version = $version;
+        $this->baseUrl = $baseUrl;
     }
 
     /**
@@ -25,35 +36,46 @@ class Client
      * @return mixed
      * @throws \Exception
      */
-    public function callMethod($message)
+    public function callMethod(AbstractMessage $message)
     {
         $responseData = $this->getResponse($message);
-        $response = json_decode($responseData, true);
-
-        if (json_last_error() > 0) {
-            print_r([json_last_error_msg(),$responseData]);
-            throw new \Exception();
+        switch (true) {
+            case $responseData !== '':
+                $response = json_decode($responseData, true);
+                if (json_last_error() > 0) {
+                    throw new CallException(json_last_error_msg(), 0, $responseData);
+                }
+                break;
+            default:
+                $response = '';
+                break;
         }
 
         return $response;
     }
 
     /**
-     * @param $body
-     *
+     * @param AbstractMessage $message
      * @return string
+     * @throws \Exception
      */
-    private function getResponse($body)
+    private function getResponse(AbstractMessage $message)
     {
-        $curl = curl_init($this->getUrl());
-        curl_setopt_array($curl, [
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $body,
+        $curl = curl_init($this->getUrl($message));
+        $options = [
             CURLOPT_HTTPHEADER => $this->getHeaders(),
             CURLOPT_RETURNTRANSFER => true,
-//            CURLOPT_VERBOSE => true,
-        ]);
+        ];
+        if ($message->isPost()) {
+            $options[CURLOPT_POST] = true;
+            $options[CURLOPT_POSTFIELDS] = $message->getBody();
+        }
+
+        curl_setopt_array($curl, $options);
         $result = curl_exec($curl);
+        if ($result === false) {
+            throw new \Exception(curl_error($curl));
+        }
         curl_close($curl);
         return $result;
     }
@@ -61,51 +83,9 @@ class Client
     /**
      * @return string
      */
-    private function getUrl()
+    private function getUrl(AbstractMessage $message)
     {
-        return $this->getProtocol() . '://' . $this->getIp() . $this->getPort()
-               . '/api/services/cryptocurrency/v1/wallets/transaction';
-    }
-
-    /**
-     * @return mixed
-     */
-    public function getIp()
-    {
-        return $this->ip;
-    }
-
-    /**
-     * @param mixed $ip
-     *
-     * @return Client
-     */
-    public function setIp($ip)
-    {
-        $this->ip = $ip;
-
-        return $this;
-    }
-
-
-    /**
-     * @return mixed
-     */
-    public function getPort()
-    {
-        return is_null($this->port) ? '' : ':' . $this->port;
-    }
-
-    /**
-     * @param mixed $port
-     *
-     * @return Client
-     */
-    public function setPort($port)
-    {
-        $this->port = $port;
-
-        return $this;
+       return $this->protocol . '://' . $this->domain . $this->baseUrl . $this->version . '/' . $message->getMethodName();
     }
 
     private function getHeaders()
@@ -113,8 +93,4 @@ class Client
         return ['Content-Type' => 'application/json'];
     }
 
-    private function getProtocol()
-    {
-        return $this->ssl ? 'https' : 'http';
-    }
 }

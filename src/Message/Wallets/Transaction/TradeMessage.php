@@ -5,12 +5,13 @@
  * @author   Ilya Sinyakin <sinyakin.ilya@gmail.com>
  */
 
-namespace SunTechSoft\Blockchain;
+namespace SunTechSoft\Blockchain\Message\Wallets\Transaction;
 
 use SunTechSoft\Blockchain\Helper\TradeOffer;
 
 class TradeMessage extends AbstractMessage
 {
+    const MESSAGE_ID = 5; //@todo rethink and move to common class with constants
     /**
      * @var TradeOffer
      */
@@ -22,7 +23,6 @@ class TradeMessage extends AbstractMessage
 
     public function __construct(string $buyerPublicKey, TradeOffer $offer)
     {
-        parent::__construct(5);
         $this->setBuyerPublicKey($buyerPublicKey)
             ->setOffer($offer);
     }
@@ -42,16 +42,15 @@ class TradeMessage extends AbstractMessage
          *   seller_signature:   &Signature    [48 => 112]
          *
          */
-        $startIndexForBody = 10; // length(networkId + protocolVersion + messageId + serviceId + payloadLength)
         $sizeBody = 112;
         $hashOffer = $this->offer->toHash(0);
 
-        $this->payloadLength = $startIndexForBody + $sizeBody + strlen($hashOffer) + 64; // 64 - length(signature)
+        $this->payloadLength = self::PACKED_HEADER_SIZE + $sizeBody + strlen($hashOffer) + 64; // 64 - length(signature)
 
-        $s = pack('ccvv', $this->networkId, $this->protocolVersion, $this->messageId, $this->serviceId)
+        $s = $this->getPackedHeader()
              . pack('V', $this->payloadLength)
              . \Sodium\hex2bin($this->getBuyerPublicKey())
-             . pack('VV', $startIndexForBody + $sizeBody, strlen($hashOffer))
+             . pack('VV', self::PACKED_HEADER_SIZE + $sizeBody, strlen($hashOffer))
              . pack('P', (int)$this->getSeed())
              . \Sodium\hex2bin($this->getBody()['seller_signature'])
              . $hashOffer
@@ -119,4 +118,8 @@ class TradeMessage extends AbstractMessage
         return $this->offer;
     }
 
+    public function getMessageId()
+    {
+        return self::MESSAGE_ID;
+    }
 }

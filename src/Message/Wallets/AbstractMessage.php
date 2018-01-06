@@ -5,14 +5,17 @@
  * @author   Ilya Sinyakin <sinyakin.ilya@gmail.com>
  */
 
-namespace SunTechSoft\Blockchain;
+namespace SunTechSoft\Blockchain\Message\Wallets;
 
 abstract class AbstractMessage
 {
+    const MYSTICAL_SERVICE_ID_2 = 2; // it never changes and never passed to constructor
+
+    const PACKED_HEADER_SIZE = 10; //length(networkId + protocolVersion + messageId + serviceId + payloadLength)
+
     protected $networkId = 0;
     protected $protocolVersion = 0;
     protected $serviceId;
-    protected $messageId;
 
     protected $payloadLength;
     protected $signature = null;
@@ -20,20 +23,15 @@ abstract class AbstractMessage
     protected $body = null;
     protected $seed = null;
 
-    public function __construct($messageId, $serviceId = 2)
-    {
-        $this->messageId = $messageId;
-        $this->serviceId = $serviceId;
-    }
 
     public function createMessage($secretKey)
     {
         return [
             'body'             => $this->getBody(),
-            'network_id'       => $this->networkId,
-            'protocol_version' => $this->protocolVersion,
-            'service_id'       => $this->serviceId,
-            'message_id'       => $this->messageId,
+            'network_id'       => $this->getNetworkId(),
+            'protocol_version' => $this->getProtocolVersion(),
+            'service_id'       => $this->getServiceId(),
+            'message_id'       => $this->getMessageId(),
             'signature'        => $this->createSignature($secretKey)
         ];
     }
@@ -62,22 +60,6 @@ abstract class AbstractMessage
         return $this->protocolVersion;
     }
 
-    /**
-     * @return int
-     */
-    public function getServiceId()
-    {
-        return $this->serviceId;
-    }
-
-    /**
-     * @return mixed
-     */
-    public function getMessageId()
-    {
-        return $this->messageId;
-    }
-
     protected function setSeed(int $seed = null)
     {
         //todo: нужно реализовать получение колиичство транзакции для кошелько подписывающего транзакцию.
@@ -98,7 +80,30 @@ abstract class AbstractMessage
         return (string)$this->seed;
     }
 
+    /**
+     * @return string
+     */
+    protected function getPackedHeader(): string
+    {
+        return pack('ccvv', $this->getNetworkId(), $this->getProtocolVersion(), $this->getMessageId(), $this->getServiceId());
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getServiceId()
+    {
+        self::MYSTICAL_SERVICE_ID_2;
+    }
+
+    public function isPost()
+    {
+        return true;
+    }
+
     abstract public function createMessageForSignature();
+    abstract public function getMessageId();
+    abstract public function getMethodName();
     abstract public function getBody();
 
 }

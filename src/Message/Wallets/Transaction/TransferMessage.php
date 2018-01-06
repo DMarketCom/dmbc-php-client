@@ -5,10 +5,11 @@
  * @author   Ilya Sinyakin <sinyakin.ilya@gmail.com>
  */
 
-namespace SunTechSoft\Blockchain;
+namespace SunTechSoft\Blockchain\Message\Wallets\Transaction;
 
 class TransferMessage extends AbstractMessage
 {
+    const MESSAGE_ID = 2; //@todo rethink and move to common class with constants
     /**
      * @var int
      */
@@ -28,8 +29,6 @@ class TransferMessage extends AbstractMessage
 
     public function __construct(string $from, string $to, int $amount, array $assets)
     {
-        parent::__construct(2);
-
         $this->setFromPublicKey($from)
              ->setToPublicKey($to)
              ->setAmount($amount)
@@ -57,13 +56,12 @@ class TransferMessage extends AbstractMessage
          *   amount     08 -> 12
          *
          */
-        $startIndexForBody = 10; // length(networkId + protocolVersion + messageId + serviceId + payloadLength)
         $sizeBody = 88;
         $sizeAsset = 12;
         $body = $this->getBody();
-        $this->payloadLength = $startIndexForBody;
+        $this->payloadLength = self::PACKED_HEADER_SIZE;
         $assets = [];
-        $this->payloadLength = $startIndexForBody + $sizeBody + 64; // 64 - length(signature)
+        $this->payloadLength = self::PACKED_HEADER_SIZE + $sizeBody + 64; // 64 - length(signature)
 
         foreach ($body['assets'] as $i => $asset) {
             $lenAsset = $sizeAsset + strlen($asset['hash_id']);
@@ -75,18 +73,18 @@ class TransferMessage extends AbstractMessage
             $this->payloadLength += (8 + $lenAsset);
         }
 
-        $s = pack('ccvv', $this->networkId, $this->protocolVersion, $this->messageId, $this->serviceId)
+        $s = $this->getPackedHeader()
              . pack('V', $this->payloadLength)
              . \Sodium\hex2bin($body['from'])
              . \Sodium\hex2bin($body['to'])
-             . pack('PVVP', $body['amount'], ($startIndexForBody + $sizeBody), count($assets), (int)$body['seed'])
+             . pack('PVVP', $body['amount'], (self::PACKED_HEADER_SIZE + $sizeBody), count($assets), (int)$body['seed'])
         ;
 
         foreach ($assets as $i => $asset) {
             if ($i>0) {
                 $assets[$i]['start'] = $assets[$i-1]['start'] + $assets[$i-1]['size'];
             } else {
-                $assets[$i]['start'] = ($startIndexForBody + $sizeBody) + 8 * count($assets);
+                $assets[$i]['start'] = (self::PACKED_HEADER_SIZE + $sizeBody) + 8 * count($assets);
             }
             $s .= pack('VV', $assets[$i]['start'], $assets[$i]['size']);
         }
@@ -214,5 +212,9 @@ class TransferMessage extends AbstractMessage
         return $this->assets;
     }
 
+    public function getMessageId()
+    {
+        return self::MESSAGE_ID;
+    }
 
 }
