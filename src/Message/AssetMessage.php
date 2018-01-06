@@ -5,7 +5,7 @@
  * @author   Ilya Sinyakin <sinyakin.ilya@gmail.com>
  */
 
-namespace SunTechSoft\Blockchain;
+namespace SunTechSoft\Blockchain\Message;
 
 abstract class AssetMessage extends AbstractMessage
 {

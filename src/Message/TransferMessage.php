@@ -5,7 +5,7 @@
  * @author   Ilya Sinyakin <sinyakin.ilya@gmail.com>
  */
 
-namespace SunTechSoft\Blockchain;
+namespace SunTechSoft\Blockchain\Message;
 
 class TransferMessage extends AbstractMessage
 {
