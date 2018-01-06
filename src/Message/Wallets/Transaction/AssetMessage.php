@@ -5,16 +5,15 @@
  * @author   Ilya Sinyakin <sinyakin.ilya@gmail.com>
  */
 
-namespace SunTechSoft\Blockchain\Message;
+namespace SunTechSoft\Blockchain\Message\Wallets\Transaction;
 
 abstract class AssetMessage extends AbstractMessage
 {
     private $publicKey;
     private $assets;
 
-    public function __construct($publicKey, array $assets, $messageId)
+    public function __construct($publicKey, array $assets)
     {
-        parent::__construct($messageId);
         $this->publicKey = $publicKey;
         $this->setAssets($assets);
     }
@@ -34,13 +33,11 @@ abstract class AssetMessage extends AbstractMessage
          *   amount     08 -> 12
          *
          */
-        $startIndexForBody = 10; // length(networkId + protocolVersion + messageId + serviceId + payloadLength)
         $sizeBody = 48;
         $sizeAsset = 12;
         $body = $this->getBody();
-        $this->payloadLength = $startIndexForBody;
         $assets = [];
-        $this->payloadLength = $startIndexForBody + $sizeBody + 64; // 64 - length(signature)
+        $this->payloadLength = self::PACKED_HEADER_SIZE + $sizeBody + 64; // 64 - length(signature)
 
         foreach ($body['assets'] as $i => $asset) {
             $lenAsset = $sizeAsset + strlen($asset['hash_id']);
@@ -52,17 +49,17 @@ abstract class AssetMessage extends AbstractMessage
             $this->payloadLength += (8 + $lenAsset);
         }
 
-        $s = pack('ccvv', $this->networkId, $this->protocolVersion, $this->messageId, $this->serviceId)
+        $s = $this->getPackedHeader()
              . pack('V', $this->payloadLength)
              . \Sodium\hex2bin($this->publicKey)
-             . pack('VVP', ($startIndexForBody + $sizeBody), count($assets), (int)$body['seed'])
+             . pack('VVP', (self::PACKED_HEADER_SIZE + $sizeBody), count($assets), (int)$body['seed'])
         ;
 
         foreach ($assets as $i => $asset) {
             if ($i>0) {
                 $assets[$i]['start'] = $assets[$i-1]['start'] + $assets[$i-1]['size'];
             } else {
-                $assets[$i]['start'] = ($startIndexForBody + $sizeBody) + 8 * count($assets);
+                $assets[$i]['start'] = (self::PACKED_HEADER_SIZE + $sizeBody) + 8 * count($assets);
             }
             $s .= pack('VV', $assets[$i]['start'], $assets[$i]['size']);
         }

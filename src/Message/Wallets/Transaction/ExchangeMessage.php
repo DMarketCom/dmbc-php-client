@@ -5,7 +5,7 @@
  * @author   Ilya Sinyakin <sinyakin.ilya@gmail.com>
  */
 
-namespace SunTechSoft\Blockchain\Message;
+namespace SunTechSoft\Blockchain\Message\Wallets\Transaction;
 
 use SunTechSoft\Blockchain\Helper\ExchangeOffer;
 
@@ -20,7 +20,6 @@ class ExchangeMessage extends AbstractMessage
 
     public function __construct(ExchangeOffer $offer)
     {
-        parent::__construct(ExchangeMessage::MESSAGE_ID);
         $this->offer = $offer;
     }
 
@@ -35,15 +34,14 @@ class ExchangeMessage extends AbstractMessage
      */
     public function createMessageForSignature()
     {
-        $startIndexForBody = 10; // length(networkId + protocolVersion + messageId + serviceId + payloadLength)
         $sizeBody = 80;
         $hashOffer = $this->offer->toHash();
 
-        $this->payloadLength = $startIndexForBody + $sizeBody + strlen($hashOffer) + 64; // 64 - length(signature)
+        $this->payloadLength = self::PACKED_HEADER_SIZE + $sizeBody + strlen($hashOffer) + 64; // 64 - length(signature)
 
-        $s = pack('ccvv', $this->networkId, $this->protocolVersion, $this->messageId, $this->serviceId)
+        $s = $this->getPackedHeader()
              . pack('V', $this->payloadLength)
-             . pack('VV', $startIndexForBody + $sizeBody, strlen($hashOffer))
+             . pack('VV', self::PACKED_HEADER_SIZE + $sizeBody, strlen($hashOffer))
              . pack('P', (int)$this->getSeed())
              . \Sodium\hex2bin($this->getOffer()->getSignature())
              . $hashOffer
@@ -83,5 +81,13 @@ class ExchangeMessage extends AbstractMessage
         $this->offer = $offer;
 
         return $this;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getMessageId()
+    {
+        return self::MESSAGE_ID;
     }
 }

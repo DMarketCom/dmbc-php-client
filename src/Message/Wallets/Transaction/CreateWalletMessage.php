@@ -5,15 +5,15 @@
  * @author   Ilya Sinyakin <sinyakin.ilya@gmail.com>
  */
 
-namespace SunTechSoft\Blockchain\Message;
+namespace SunTechSoft\Blockchain\Message\Wallets\Transaction;
 
 final class CreateWalletMessage extends AbstractMessage
 {
+    const MESSAGE_ID = 1; //@todo rethink and move to common class with constants
     private $publicKey;
 
     public function __construct($publicKey)
     {
-        parent::__construct(1);
         $this->publicKey = $publicKey;
     }
 
@@ -22,7 +22,7 @@ final class CreateWalletMessage extends AbstractMessage
         $this->payloadLength = 106;
 
         $msg = '';
-        $msg .= pack('ccvv', $this->networkId, $this->protocolVersion, $this->messageId, $this->serviceId);
+        $msg .= $this->getPackedHeader();
         $msg .= pack('V', $this->payloadLength);
         $msg .= \Sodium\hex2bin($this->publicKey);
 
@@ -36,4 +36,9 @@ final class CreateWalletMessage extends AbstractMessage
         ];
     }
 
+
+    public function getMessageId()
+    {
+        return self::MESSAGE_ID;
+    }
 }
